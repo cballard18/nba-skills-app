@@ -22,3 +22,6 @@ __pycache__/
 # Misc
 .DS_Store
 projections/
+
+# Claude
+.claude/
