@@ -518,7 +518,6 @@ EXPLORER_HTML = """
         document.getElementById("statsRow").innerHTML = `
           <div class="stat-chip"><div class="val">${fmtVal(latest, skill)}</div><div class="lbl">Latest estimate</div></div>
           <div class="stat-chip"><div class="val">${fmtVal(avg, skill)}</div><div class="lbl">Career avg</div></div>
-          <div class="stat-chip"><div class="val">${fmtVal(mn, skill)} – ${fmtVal(mx, skill)}</div><div class="lbl">Range</div></div>
           <div class="stat-chip"><div class="val">${data.n_games}</div><div class="lbl">Games</div></div>
         `;
       } else {
