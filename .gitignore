@@ -1,0 +1,24 @@
+# R scripts and models
+*.R
+*.rds
+
+# Datasets not used by the Flask app
+datasets/poss_*.parquet
+datasets/raw_pbp.parquet
+datasets/projection_features.parquet
+datasets/proj_preds.parquet
+datasets/pos_box_scores.parquet
+datasets/context_effects.parquet
+datasets/rapm_career.parquet
+datasets/rapm_seasons.parquet
+datasets/poss_preds.parquet
+
+# Python
+__pycache__/
+.venv/
+*.pyc
+*.pyo
+
+# Misc
+.DS_Store
+projections/

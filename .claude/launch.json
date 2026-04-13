@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "NBA Skills Explorer",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["/Users/charliepersonal/Desktop/Sports/NBA/Skills/app.py"],
+      "port": 5050
+    }
+  ]
+}
