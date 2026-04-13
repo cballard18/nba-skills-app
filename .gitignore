@@ -9,9 +9,11 @@ datasets/projection_features.parquet
 datasets/proj_preds.parquet
 datasets/pos_box_scores.parquet
 datasets/context_effects.parquet
+datasets/context_effects_ts.parquet
 datasets/rapm_career.parquet
 datasets/rapm_seasons.parquet
 datasets/poss_preds.parquet
+datasets/skills.csv
 
 # Python
 __pycache__/
