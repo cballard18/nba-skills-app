@@ -100,6 +100,8 @@ SKILL_ABBR = {
     "dftr":              "DFTR",
 }
 
+LOWER_IS_BETTER = {"tov_per100", "pf_per100"}
+
 # Pre-compute leaderboard: latest non-null estimate per player per skill
 print("Building leaderboard...")
 leaderboard_rows = []
@@ -117,7 +119,11 @@ LEADERBOARD_DF = pd.DataFrame(leaderboard_rows)
 # Pre-compute percentiles (rank among players with non-null values)
 for skill in SKILLS:
     LEADERBOARD_DF[f"{skill}_pct"] = (
-        LEADERBOARD_DF[skill].rank(pct=True, na_option="keep") * 100
+        LEADERBOARD_DF[skill].rank(
+            pct=True,
+            na_option="keep",
+            ascending=skill not in LOWER_IS_BETTER,
+        ) * 100
     ).round(1)
 print("Leaderboard + percentiles ready.")
 
@@ -408,6 +414,7 @@ EXPLORER_HTML = """
     const SKILL_LABELS = {{ skill_labels | tojson }};
     const SPM_SKILLS = new Set({{ spm_skills.keys() | list | tojson }});
     const FF_SKILLS  = new Set(['oefg','otov','oorb','oftr','defg','dtov','dorb','dftr']);
+    const LOWER_IS_BETTER = new Set(['tov_per100', 'pf_per100']);
     let chart = null;
     let currentPlayer = null;
     let currentSkill = "spm";
@@ -597,6 +604,7 @@ EXPLORER_HTML = """
     async function loadLeaderboard() {
       currentSkill = document.getElementById("skillSelect").value;
       const skill = currentSkill;
+      if (sortCol === "value") sortAsc = LOWER_IS_BETTER.has(skill);
       document.getElementById("lbLoading").style.display = "block";
       document.getElementById("lbTable").style.display = "none";
       document.getElementById("lbTitle").textContent = `${SKILL_LABELS[skill] || skill} Leaderboard`;
@@ -630,7 +638,9 @@ EXPLORER_HTML = """
       const range = maxVal - minVal || 1;
       const body = document.getElementById("lbBody");
       body.innerHTML = lbFiltered.map((row, i) => {
-        const barPct = row.value != null ? Math.round(((row.value - minVal) / range) * 100) : 0;
+        const barPct = row.value != null
+          ? Math.round(((LOWER_IS_BETTER.has(currentSkill) ? maxVal - row.value : row.value - minVal) / range) * 100)
+          : 0;
         const isHL = row.player === currentPlayer;
         return `<tr class="${isHL ? "highlighted" : ""}" data-player="${row.player}">
           <td class="rank">${i + 1}</td>
@@ -664,7 +674,7 @@ EXPLORER_HTML = """
       th.addEventListener("click", () => {
         const col = th.dataset.col;
         if (sortCol === col) sortAsc = !sortAsc;
-        else { sortCol = col; sortAsc = col === "player"; }
+        else { sortCol = col; sortAsc = col === "player" || (col === "value" && LOWER_IS_BETTER.has(currentSkill)); }
         document.querySelectorAll("thead th").forEach(h => {
           h.classList.remove("sorted");
           h.querySelector(".sort-icon").textContent = "↕";
@@ -863,8 +873,8 @@ RANKINGS_HTML = """
         <div class="glossary-section">
           <h4>Notes</h4>
           <div class="glossary-row"><span class="glossary-abbr">Estimates</span><span class="glossary-desc">All skills are rolling ridge regression estimates — each game's value reflects all prior games, with recent games weighted more heavily</span></div>
-          <div class="glossary-row"><span class="glossary-abbr">Percentiles</span><span class="glossary-desc">Colored badges show rank among all players in the dataset. Green = top, red = bottom. TOV/100 and PF/100 are flipped (lower is better)</span></div>
-          <div class="glossary-row"><span class="glossary-abbr">Four Factors</span><span class="glossary-desc">Estimated via APM — players separated from teammates using a +1/−1 lineup design matrix, then regularized with calendar-day decay weights</span></div>
+          <div class="glossary-row"><span class="glossary-abbr">Percentiles</span><span class="glossary-desc">Colored badges show rank among all players in the dataset. Green = top, red = bottom. TOV/100 and PF/100 treat lower values as better</span></div>
+          <div class="glossary-row"><span class="glossary-abbr">Four Factors</span><span class="glossary-desc">Estimated via APM — players separated from teammates using a +1/−1 lineup design matrix, then regularized with beta-decay weights</span></div>
         </div>
 
       </div>
@@ -881,7 +891,7 @@ RANKINGS_HTML = """
 
     document.getElementById("nav-rankings").classList.add("active");
 
-    const FLIP_SKILLS  = new Set(['tov_per100', 'pf_per100', 'fg2a_rate_per100']);
+    const LOWER_IS_BETTER = new Set(['tov_per100', 'pf_per100']);
     const FF_SKILLS_R  = new Set(['oefg','otov','oorb','oftr','defg','dtov','dorb','dftr']);
     const SPM_SKILLS_R = new Set(['ospm','dspm','spm']);
     const SPM_COLS = ['ospm', 'dspm', 'spm'];
@@ -941,9 +951,9 @@ RANKINGS_HTML = """
       if (ttEl.style.display !== "none") positionTooltip(e);
     });
 
-    function pctColor(pct, flip = false) {
+    function pctColor(pct) {
       if (pct == null) return 'transparent';
-      const p = flip ? 100 - pct : pct;
+      const p = pct;
       const hue = p * 1.2; // 0 → red (0°), 100 → green (120°)
       return `hsla(${hue.toFixed(1)}, 60%, 48%, 0.35)`;
     }
@@ -1001,7 +1011,7 @@ RANKINGS_HTML = """
             cells += `<td class="stat-cell">
               <div class="cell-inner">
                 <span class="cell-val">${sign}${val.toFixed(decimals)}</span>
-                <span class="cell-pct" style="background:${pctColor(pct, FLIP_SKILLS.has(sk))}">${pctLabel(pct)}</span>
+                <span class="cell-pct" style="background:${pctColor(pct)}">${pctLabel(pct)}</span>
               </div>
             </td>`;
           }
@@ -1036,7 +1046,7 @@ RANKINGS_HTML = """
         th.addEventListener("click", () => {
           const key = th.dataset.key;
           if (sortKey === key) sortAsc = !sortAsc;
-          else { sortKey = key; sortAsc = key === "player"; }
+          else { sortKey = key; sortAsc = key === "player" || LOWER_IS_BETTER.has(key); }
           applyFilterAndSort();
         });
       });
@@ -1614,7 +1624,10 @@ def get_leaderboard():
             "n_games": int(r["n_games"]),
         })
 
-    rows.sort(key=lambda x: (x["value"] is None, -(x["value"] or 0)))
+    if skill in LOWER_IS_BETTER:
+        rows.sort(key=lambda x: (x["value"] is None, x["value"] if x["value"] is not None else 0))
+    else:
+        rows.sort(key=lambda x: (x["value"] is None, -(x["value"] or 0)))
     return jsonify(rows)
 
 @app.route("/api/rankings")
