@@ -4,6 +4,7 @@ import numpy as np
 from statsmodels.nonparametric.smoothers_lowess import lowess
 
 app = Flask(__name__)
+DISPLAY_START_DATE = pd.Timestamp("2017-10-17")
 
 # Load once at startup
 print("Loading data...")
@@ -13,6 +14,7 @@ df["game_date"] = pd.to_datetime(df["game_date"])
 ff = pd.read_parquet("datasets/four_factor_skills.parquet")
 ff["game_date"] = pd.to_datetime(ff["game_date"])
 df = df.merge(ff, on=["player", "game_date"], how="left")
+df = df[df["game_date"] >= DISPLAY_START_DATE]
 
 # Scale four-factor APM coefficients to per-100-possession units.
 # Negate otov/dtov so positive = good (fewer own TOs / more forced TOs).
@@ -30,9 +32,11 @@ print(f"Loaded {len(df)} rows, {len(PLAYERS)} players")
 
 spm_ts = pd.read_parquet("datasets/spm_ts.parquet")
 spm_ts["game_date"] = pd.to_datetime(spm_ts["game_date"])
+spm_ts = spm_ts[spm_ts["game_date"] >= DISPLAY_START_DATE]
 spm_ts = spm_ts.sort_values(["player", "game_date"])
 
 spm_career = pd.read_parquet("datasets/spm_career.parquet")
+spm_career = spm_career[spm_career["player"].isin(spm_ts["player"].unique())]
 spm_career = spm_career.sort_values("spm", ascending=False).reset_index(drop=True)
 SPM_PLAYERS = sorted(spm_ts["player"].unique().tolist())
 spm_n_games = spm_ts.groupby("player").size().to_dict()
@@ -551,7 +555,7 @@ EXPLORER_HTML = """
           data: data.loess.map((y, i) => y != null ? { x: i, y } : null).filter(Boolean),
           borderColor: c.accent, backgroundColor: "transparent",
           borderWidth: 2.5, pointRadius: 0, tension: 0.4, spanGaps: true, order: 1,
-        },
+        }
       ];
       if (leagueAvg != null) {
         datasets.push({
